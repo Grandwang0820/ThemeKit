@@ -8,7 +8,8 @@ import { CSS } from '@dnd-kit/utilities';
 
 
 const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
-  const { canvasState } = useCanvas(); // dispatch is handled by MiddlePanel's onDragEnd for adding new elements
+  // canvasState was unused here. If needed for specific logic, it can be re-added.
+  // const { canvasState } = useCanvas();
   const { t } = useLanguage();
 
   if (!data) {
@@ -30,27 +31,36 @@ const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
   const Tag = componentConfig.htmlTag || 'div';
   const isSelected = data.id === selectedNodeId;
 
-  // Make each component a droppable target if it's a container-like element
-  const { setNodeRef: setDroppableRef, isOver: isOverDroppable } = useDroppable({
-    id: data.id, // Each component instance is a droppable target with its own ID
-    disabled: componentConfig.children === null, // Disable dropping on non-container components (like Text, Image)
+  // Call hooks unconditionally at the top level
+  const { setNodeRef: setDroppableNodeRef, isOver: isOverDroppable } = useDroppable({
+    id: data.id,
+    disabled: componentConfig.children === null || data.id === `canvas-el-${data.id}`, // Disable for non-containers or if it's a draggable version of itself
     data: {
-      targetId: data.id, // Pass the node's ID for context in onDragEnd
+      targetId: data.id,
       isCanvasComponent: true,
-    }
+    },
   });
 
-  // TODO: Implement useDraggable for reordering existing elements later
-  const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
-    id: `canvas-el-${data.id}`, // Unique draggable ID for canvas elements
+  const { attributes, listeners, setNodeRef: setDraggableNodeRef, transform, isDragging } = useDraggable({
+    id: `canvas-el-${data.id}`, // Keep a distinct ID for the draggable aspect if necessary
     data: {
       nodeId: data.id,
-      from: 'canvasElement', // Distinguish from library items
-      isCanvasComponent: true, // To identify it as a canvas component
-      componentType: data.component, // Pass component type for potential drop restrictions
+      from: 'canvasElement',
+      isCanvasComponent: true,
+      componentType: data.component,
     },
-    disabled: data.id === 'root-container', // Root container cannot be dragged
+    disabled: data.id === 'root-container',
   });
+
+  // Conditional logic for refs based on whether the component is the root or not
+  const setNodeRef = data.id === 'root-container' ? setDroppableNodeRef : (node) => {
+    setDraggableNodeRef(node);
+    setDroppableNodeRef(node);
+  };
+
+  const currentListeners = data.id === 'root-container' ? {} : listeners;
+  const currentAttributes = data.id === 'root-container' ? {} : attributes;
+
 
   const draggableStyle = {
     transform: CSS.Translate.toString(transform),
@@ -84,20 +94,14 @@ const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
       delete htmlProps.content; // Avoid rendering 'content' attribute if not applicable
   }
 
-  // Combine refs for draggable and droppable
-  const combinedRef = (node) => {
-    setDraggableRef(node);
-    setDroppableRef(node);
-  };
-
   return (
     <Tag
-      ref={data.id === 'root-container' ? setDroppableRef : combinedRef} // Root is only droppable, not draggable
+      ref={setNodeRef} // Use the combined or conditional ref
       id={data.id}
       style={combinedStyles}
       onClick={handleSelect}
-      {...(data.id === 'root-container' ? {} : listeners)} // Only attach drag listeners if not root
-      {...(data.id === 'root-container' ? {} : attributes)} // Only attach drag attributes if not root
+      {...currentListeners} // Use conditional listeners
+      {...currentAttributes} // Use conditional attributes
       {...htmlProps}
     >
       {componentConfig.defaultProps?.hasOwnProperty('content') && data.props?.content ? data.props.content : null}

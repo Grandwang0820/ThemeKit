@@ -43,7 +43,7 @@ const MiddlePanel = () => {
       return; // Dropped outside a valid target
     }
 
-    const activeId = active.id; // This will be `draggable-${componentType}` for library items, or `canvas-el-${nodeId}` for canvas items
+    // const activeId = active.id; // This variable was unused. active.data.current is used instead.
     const overId = over.id;   // This will be the ID of the droppable area (`canvas-root-drop-area` or a component's ID)
 
     const activeIsFromLibrary = active.data.current?.from === 'componentLibrary';
