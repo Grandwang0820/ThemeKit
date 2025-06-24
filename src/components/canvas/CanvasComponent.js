@@ -8,31 +8,35 @@ import { CSS } from '@dnd-kit/utilities';
 
 
 const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
-  // Call hooks unconditionally at the VERY TOP.
+  // Define all potentially conditional values for hooks first.
+  const componentConfigForHook = data ? componentLibrary[data.component] : null;
+
+  const droppableId = data ? data.id : `droppable-placeholder-${parentId || 'root'}`;
+  const droppableDisabled = !data || !componentConfigForHook || componentConfigForHook.children === null;
+  const droppableHookData = { targetId: data ? data.id : null, isCanvasComponent: true };
+
+  const draggableId = data ? `canvas-el-${data.id}` : `draggable-placeholder-${parentId || 'root'}`;
+  const draggableDisabled = !data || !componentConfigForHook || data.id === 'root-container';
+  const draggableHookData = {
+    nodeId: data ? data.id : null,
+    from: 'canvasElement',
+    isCanvasComponent: true,
+    componentType: data ? data.component : null,
+  };
+
+  // Call hooks unconditionally with pre-defined options.
   const { setNodeRef: setDroppableNodeRef, isOver: isOverDroppable } = useDroppable({
-    // Hooks need a stable ID. If data can be null initially, this might be an issue.
-    // Assuming data.id is stable or dnd-kit handles initial undefined IDs gracefully if disabled.
-    id: data ? data.id : `droppable-placeholder-${parentId || 'root'}`, // Provide a fallback ID if data is null
-    disabled: !data || !componentLibrary[data.component] || componentLibrary[data.component].children === null,
-    data: {
-      targetId: data ? data.id : null,
-      isCanvasComponent: true,
-    },
+    id: droppableId,
+    disabled: droppableDisabled,
+    data: droppableHookData,
   });
 
   const { attributes, listeners, setNodeRef: setDraggableNodeRef, transform, isDragging } = useDraggable({
-    id: data ? `canvas-el-${data.id}` : `draggable-placeholder-${parentId || 'root'}`, // Fallback ID
-    data: {
-      nodeId: data ? data.id : null,
-      from: 'canvasElement',
-      isCanvasComponent: true,
-      componentType: data ? data.component : null,
-    },
-    disabled: !data || data.id === 'root-container' || !componentLibrary[data.component],
+    id: draggableId,
+    disabled: draggableDisabled,
+    data: draggableHookData,
   });
 
-  // canvasState was unused here. If needed for specific logic, it can be re-added.
-  // const { canvasState } = useCanvas();
   const { t } = useLanguage();
 
   if (!data) {
