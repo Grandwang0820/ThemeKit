@@ -34,7 +34,8 @@ const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
   // Call hooks unconditionally at the top level
   const { setNodeRef: setDroppableNodeRef, isOver: isOverDroppable } = useDroppable({
     id: data.id,
-    disabled: componentConfig.children === null || data.id === `canvas-el-${data.id}`, // Disable for non-containers or if it's a draggable version of itself
+    // Disable droppable if the component is not a container (i.e., cannot have children)
+    disabled: componentConfig.children === null,
     data: {
       targetId: data.id,
       isCanvasComponent: true,
