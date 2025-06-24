@@ -8,12 +8,40 @@ import { CSS } from '@dnd-kit/utilities';
 
 
 const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
-  // canvasState was unused here. If needed for specific logic, it can be re-added.
-  // const { canvasState } = useCanvas();
+  // Define all potentially conditional values for hooks first.
+  const componentConfigForHook = data ? componentLibrary[data.component] : null;
+
+  const droppableId = data ? data.id : `droppable-placeholder-${parentId || 'root'}`;
+  const droppableDisabled = !data || !componentConfigForHook || componentConfigForHook.children === null;
+  const droppableHookData = { targetId: data ? data.id : null, isCanvasComponent: true };
+
+  const draggableId = data ? `canvas-el-${data.id}` : `draggable-placeholder-${parentId || 'root'}`;
+  const draggableDisabled = !data || !componentConfigForHook || data.id === 'root-container';
+  const draggableHookData = {
+    nodeId: data ? data.id : null,
+    from: 'canvasElement',
+    isCanvasComponent: true,
+    componentType: data ? data.component : null,
+  };
+
+  // Call hooks unconditionally with pre-defined options.
+  const { setNodeRef: setDroppableNodeRef, isOver: isOverDroppable } = useDroppable({
+    id: droppableId,
+    disabled: droppableDisabled,
+    data: droppableHookData,
+  });
+
+  const { attributes, listeners, setNodeRef: setDraggableNodeRef, transform, isDragging } = useDraggable({
+    id: draggableId,
+    disabled: draggableDisabled,
+    data: draggableHookData,
+  });
+
   const { t } = useLanguage();
 
   if (!data) {
     console.warn("CanvasComponent received null data. This shouldn't happen.");
+    // If we return here, hooks above are fine. The placeholder won't use them.
     return null;
   }
 
@@ -21,6 +49,7 @@ const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
 
   if (!componentConfig) {
     console.warn(`Component type "${data.component}" not found in library. Rendering placeholder.`);
+    // If we return here, hooks above are fine. The placeholder won't use them.
     return (
       <div style={{ border: '1px dashed red', padding: '10px', margin: '5px' }}>
         {t('Unknown Component')}: {data.component} (ID: {data.id})
@@ -31,29 +60,8 @@ const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
   const Tag = componentConfig.htmlTag || 'div';
   const isSelected = data.id === selectedNodeId;
 
-  // Call hooks unconditionally at the top level
-  const { setNodeRef: setDroppableNodeRef, isOver: isOverDroppable } = useDroppable({
-    id: data.id,
-    // Disable droppable if the component is not a container (i.e., cannot have children)
-    disabled: componentConfig.children === null,
-    data: {
-      targetId: data.id,
-      isCanvasComponent: true,
-    },
-  });
-
-  const { attributes, listeners, setNodeRef: setDraggableNodeRef, transform, isDragging } = useDraggable({
-    id: `canvas-el-${data.id}`, // Keep a distinct ID for the draggable aspect if necessary
-    data: {
-      nodeId: data.id,
-      from: 'canvasElement',
-      isCanvasComponent: true,
-      componentType: data.component,
-    },
-    disabled: data.id === 'root-container',
-  });
-
   // Conditional logic for refs based on whether the component is the root or not
+  // This logic is now safe as hooks are called before any early returns.
   const setNodeRef = data.id === 'root-container' ? setDroppableNodeRef : (node) => {
     setDraggableNodeRef(node);
     setDroppableNodeRef(node);
