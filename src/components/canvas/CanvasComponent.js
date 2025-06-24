@@ -97,39 +97,58 @@ const CanvasComponent = ({ data, onSelectNode, selectedNodeId, parentId }) => {
 
   // Convert props from canvasState to valid HTML attributes
   const htmlProps = { ...data.props };
-  if (htmlProps.content && (Tag === 'p' || Tag === 'h1' || Tag === 'h2' || Tag === 'h3' || Tag === 'h4' || Tag === 'h5' || Tag === 'h6' || Tag === 'span' || Tag === 'button')) {
-    // Content for text-like elements goes inside the tag, not as an attribute
-  } else if (htmlProps.content) {
-      delete htmlProps.content; // Avoid rendering 'content' attribute if not applicable
+
+  // List of HTML void elements
+  const voidElements = [
+    'area', 'base', 'br', 'col', 'embed', 'hr', 'img',
+    'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'
+  ];
+  const isVoidElement = voidElements.includes(Tag);
+
+  // Content for text-like elements should only be rendered if not a void element
+  // and if the component is designed to have such content.
+  const renderableContent = !isVoidElement && componentConfig.defaultProps?.hasOwnProperty('content') && data.props?.content
+    ? data.props.content
+    : null;
+
+  // Remove 'content' from htmlProps if it's meant to be innerHTML or for void elements
+  if (renderableContent || isVoidElement || (htmlProps.content && (Tag === 'p' || Tag.startsWith('h') || Tag === 'span' || Tag === 'button'))) {
+    delete htmlProps.content;
   }
+
 
   return (
     <Tag
-      ref={setNodeRef} // Use the combined or conditional ref
+      ref={setNodeRef}
       id={data.id}
       style={combinedStyles}
       onClick={handleSelect}
-      {...currentListeners} // Use conditional listeners
-      {...currentAttributes} // Use conditional attributes
-      {...htmlProps}
+      {...currentListeners}
+      {...currentAttributes}
+      {...htmlProps} // Spread sanitized htmlProps
     >
-      {componentConfig.defaultProps?.hasOwnProperty('content') && data.props?.content ? data.props.content : null}
+      {renderableContent /* Render content if it's valid to do so */}
 
-      {!componentConfig.selfClosing && data.children && data.children.length > 0 &&
-        data.children.map(child => (
-          <CanvasComponent
-            key={child.id}
-            data={child}
-            onSelectNode={onSelectNode}
-            selectedNodeId={selectedNodeId}
-            parentId={data.id}
-          />
-        ))}
+      {/* Children and empty placeholders only if not a void element and component can have children */}
+      {!isVoidElement && !componentConfig.selfClosing && componentConfig.children !== null && (
+        <>
+          {data.children && data.children.length > 0 &&
+            data.children.map(child => (
+              <CanvasComponent
+                key={child.id}
+                data={child}
+                onSelectNode={onSelectNode}
+                selectedNodeId={selectedNodeId}
+                parentId={data.id}
+              />
+            ))}
 
-      {!componentConfig.selfClosing && (!data.children || data.children.length === 0) && componentConfig.children !== null && (
-        <div style={{ minHeight: '30px', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#aaa', fontSize:'12px', pointerEvents: 'none' }}>
-          {t(componentConfig.name === "Container" ? 'Empty Container - Drop here' : 'Empty Area - Drop here')}
-        </div>
+          {(!data.children || data.children.length === 0) && (
+            <div style={{ minHeight: '30px', width: '100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#aaa', fontSize:'12px', pointerEvents: 'none' }}>
+              {t(componentConfig.name === "Container" ? 'Empty Container - Drop here' : 'Empty Area - Drop here')}
+            </div>
+          )}
+        </>
       )}
     </Tag>
   );
